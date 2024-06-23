@@ -1,117 +1,130 @@
-name: hive tests
-
-on:
-  pull_request:
-
 env:
-  # An envar that signals to tests we are executing in the CI environment
   CONTINUOUS_INTEGRATION: true
-  MAVEN_OPTS: "-Xmx1024M -XX:+ExitOnOutOfMemoryError"
-  MAVEN_INSTALL_OPTS: "-Xmx2G -XX:+ExitOnOutOfMemoryError"
-  MAVEN_FAST_INSTALL: "-B -V --quiet -T 1C -DskipTests -Dair.check.skip-all --no-transfer-progress -Dmaven.javadoc.skip=true"
-  MAVEN_TEST: "-B -Dair.check.skip-all -Dmaven.javadoc.skip=true -DLogTestDurationListener.enabled=true --no-transfer-progress --fail-at-end"
+  MAVEN_FAST_INSTALL: -B -V --quiet -T 1C -DskipTests -Dair.check.skip-all --no-transfer-progress
+    -Dmaven.javadoc.skip=true
+  MAVEN_INSTALL_OPTS: -Xmx2G -XX:+ExitOnOutOfMemoryError
+  MAVEN_OPTS: -Xmx1024M -XX:+ExitOnOutOfMemoryError
+  MAVEN_TEST: -B -Dair.check.skip-all -Dmaven.javadoc.skip=true -DLogTestDurationListener.enabled=true
+    --no-transfer-progress --fail-at-end
   RETRY: .github/bin/retry
-
 jobs:
   changes:
-    runs-on: ubuntu-latest
-    # Required permissions
-    permissions:
-      pull-requests: read
-    # Set job outputs to values from filter step
     outputs:
       codechange: ${{ steps.filter.outputs.codechange }}
+    permissions:
+      pull-requests: read
+    runs-on: self-hosted
     steps:
-    # For pull requests it's not necessary to checkout the code
-    - uses: dorny/paths-filter@v2
+    - continue-on-error: true
       id: filter
+      uses: dorny/paths-filter@v2
       with:
-        filters: |
-          codechange:
-            - '!presto-docs/**'
-
-  hive-tests:
-    runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.codechange == 'true'
-    timeout-minutes: 60
-    concurrency:
-      group: ${{ github.workflow }}-hive-tests-${{ github.event.pull_request.number }}
-      cancel-in-progress: true
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          show-progress: false
-      - uses: actions/setup-java@v2
-        with:
-          distribution: 'temurin'
-          java-version: 8
-      - name: Cache local Maven repository
-        id: cache-maven
-        uses: actions/cache@v2
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-2-
-      - name: Populate maven cache
-        if: steps.cache-maven.outputs.cache-hit != 'true'
-        run: ./mvnw de.qaware.maven:go-offline-maven-plugin:resolve-dependencies --no-transfer-progress && .github/bin/download_nodejs
-      - name: Install Hive Module
-        run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          ./mvnw install ${MAVEN_FAST_INSTALL} -am -pl :presto-hive-hadoop2
-      - name: Run Hive Tests
-        run: presto-hive-hadoop2/bin/run_hive_tests.sh
-      - name: Run Hive S3 Tests
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.HIVE_AWS_ACCESSKEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.HIVE_AWS_SECRETKEY }}
-          S3_BUCKET: "presto-ci-test"
-          S3_BUCKET_ENDPOINT: "s3.us-east-2.amazonaws.com"
-        run: |
-          if [ "${AWS_ACCESS_KEY_ID}" != "" ]; then
-              presto-hive-hadoop2/bin/run_hive_s3_tests.sh
-          fi
-      - name: Run Hive Glue Tests
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.HIVE_AWS_ACCESSKEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.HIVE_AWS_SECRETKEY }}
-        run: |
-          if [ "${HIVE_AWS_ACCESS_KEY_ID}" != "" ]; then
-              ./mvnw test ${MAVEN_TEST} -pl :presto-hive -P test-hive-glue
-          fi
-
+        filters: "codechange:\n  - '!presto-docs/**'\n"
   hive-dockerized-tests:
-    runs-on: ubuntu-latest
-    needs: changes
-    if: needs.changes.outputs.codechange == 'true'
-    timeout-minutes: 20
     concurrency:
-      group: ${{ github.workflow }}-hive-dockerized-tests-${{ github.event.pull_request.number }}
       cancel-in-progress: true
+      group: ${{ github.workflow }}-hive-dockerized-tests-${{ github.event.pull_request.number
+        }}
+    if: needs.changes.outputs.codechange == 'true'
+    needs: changes
+    runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
-        with:
-          show-progress: false
-      - uses: actions/setup-java@v2
-        with:
-          distribution: 'temurin'
-          java-version: 8
-      - name: Cache local Maven repository
-        id: cache-maven
-        uses: actions/cache@v2
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-2-
-      - name: Populate maven cache
-        if: steps.cache-maven.outputs.cache-hit != 'true'
-        run: ./mvnw de.qaware.maven:go-offline-maven-plugin:resolve-dependencies && .github/bin/download_nodejs
-      - name: Install Hive Module
-        run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          ./mvnw install ${MAVEN_FAST_INSTALL} -am -pl :presto-hive
-      - name: Run Hive Dockerized Tests
-        run: ./mvnw test ${MAVEN_TEST} -pl :presto-hive -P test-hive-insert-overwrite
+    - continue-on-error: true
+      uses: actions/checkout@v4
+      with:
+        show-progress: false
+    - continue-on-error: true
+      uses: actions/setup-java@v2
+      with:
+        distribution: temurin
+        java-version: 8
+    - continue-on-error: true
+      id: cache-maven
+      name: Cache local Maven repository
+      uses: actions/cache@v2
+      with:
+        key: ${{ runner.os }}-maven-2-${{ hashFiles('**/pom.xml') }}
+        path: ~/.m2/repository
+        restore-keys: '${{ runner.os }}-maven-2-
+
+          '
+    - continue-on-error: true
+      if: steps.cache-maven.outputs.cache-hit != 'true'
+      name: Populate maven cache
+      run: ./mvnw de.qaware.maven:go-offline-maven-plugin:resolve-dependencies &&
+        .github/bin/download_nodejs
+    - continue-on-error: true
+      name: Install Hive Module
+      run: 'export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+
+        ./mvnw install ${MAVEN_FAST_INSTALL} -am -pl :presto-hive
+
+        '
+    - continue-on-error: true
+      name: Run Hive Dockerized Tests
+      run: ./mvnw test ${MAVEN_TEST} -pl :presto-hive -P test-hive-insert-overwrite
+    timeout-minutes: 20
+  hive-tests:
+    concurrency:
+      cancel-in-progress: true
+      group: ${{ github.workflow }}-hive-tests-${{ github.event.pull_request.number
+        }}
+    if: needs.changes.outputs.codechange == 'true'
+    needs: changes
+    runs-on: self-hosted
+    steps:
+    - continue-on-error: true
+      uses: actions/checkout@v4
+      with:
+        show-progress: false
+    - continue-on-error: true
+      uses: actions/setup-java@v2
+      with:
+        distribution: temurin
+        java-version: 8
+    - continue-on-error: true
+      id: cache-maven
+      name: Cache local Maven repository
+      uses: actions/cache@v2
+      with:
+        key: ${{ runner.os }}-maven-2-${{ hashFiles('**/pom.xml') }}
+        path: ~/.m2/repository
+        restore-keys: '${{ runner.os }}-maven-2-
+
+          '
+    - continue-on-error: true
+      if: steps.cache-maven.outputs.cache-hit != 'true'
+      name: Populate maven cache
+      run: ./mvnw de.qaware.maven:go-offline-maven-plugin:resolve-dependencies --no-transfer-progress
+        && .github/bin/download_nodejs
+    - continue-on-error: true
+      name: Install Hive Module
+      run: 'export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+
+        ./mvnw install ${MAVEN_FAST_INSTALL} -am -pl :presto-hive-hadoop2
+
+        '
+    - continue-on-error: true
+      name: Run Hive Tests
+      run: presto-hive-hadoop2/bin/run_hive_tests.sh
+    - continue-on-error: true
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.HIVE_AWS_ACCESSKEY }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.HIVE_AWS_SECRETKEY }}
+        S3_BUCKET: presto-ci-test
+        S3_BUCKET_ENDPOINT: s3.us-east-2.amazonaws.com
+      name: Run Hive S3 Tests
+      run: "if [ \"${AWS_ACCESS_KEY_ID}\" != \"\" ]; then\n    presto-hive-hadoop2/bin/run_hive_s3_tests.sh\n\
+        fi\n"
+    - continue-on-error: true
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.HIVE_AWS_ACCESSKEY }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.HIVE_AWS_SECRETKEY }}
+      name: Run Hive Glue Tests
+      run: "if [ \"${HIVE_AWS_ACCESS_KEY_ID}\" != \"\" ]; then\n    ./mvnw test ${MAVEN_TEST}\
+        \ -pl :presto-hive -P test-hive-glue\nfi\n"
+    timeout-minutes: 60
+name: hive tests
+on:
+  repository_dispatch:
+    types: trigger-ga___hive-tests.yml

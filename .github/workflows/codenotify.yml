@@ -1,23 +1,22 @@
-# notifies users from CODENOTIFY files if a PR changed any files
-# that they subscribe to
-name: codenotify
-
-on:
-  pull_request_target:
-    types: [opened, synchronize, ready_for_review]
-
 jobs:
   codenotify:
-    runs-on: ubuntu-latest
-    name: "Label and notify"
+    name: Label and notify
+    runs-on: self-hosted
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          show-progress: false
-      - uses: sourcegraph/codenotify@v0.6.4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/labeler@v4.3.0
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+    - continue-on-error: true
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        show-progress: false
+    - continue-on-error: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: sourcegraph/codenotify@v0.6.4
+    - continue-on-error: true
+      uses: actions/labeler@v4.3.0
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+name: codenotify
+on:
+  repository_dispatch:
+    types: trigger-ga___codenotify.yml

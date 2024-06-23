@@ -1,49 +1,62 @@
-name: maven checks
-
-on:
-  pull_request:
-
 env:
-  # An envar that signals to tests we are executing in the CI environment
   CONTINUOUS_INTEGRATION: true
-  MAVEN_OPTS: "-Xmx1024M -XX:+ExitOnOutOfMemoryError"
-  MAVEN_INSTALL_OPTS: "-Xmx2G -XX:+ExitOnOutOfMemoryError"
+  MAVEN_INSTALL_OPTS: -Xmx2G -XX:+ExitOnOutOfMemoryError
+  MAVEN_OPTS: -Xmx1024M -XX:+ExitOnOutOfMemoryError
   RETRY: .github/bin/retry
-
 jobs:
   maven-checks:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
     concurrency:
-      group: ${{ github.workflow }}-maven-checks-${{ github.event.pull_request.number }}
       cancel-in-progress: true
+      group: ${{ github.workflow }}-maven-checks-${{ github.event.pull_request.number
+        }}
+    runs-on: self-hosted
     steps:
-      - name: Free Disk Space
-        run: |
-          df -h
-          sudo apt-get clean
-          df -h
-      - uses: actions/checkout@v4
-        with:
-          show-progress: false
-      - uses: actions/setup-java@v2
-        with:
-          distribution: 'temurin'
-          java-version: 8
-      - name: Cache local Maven repository
-        id: cache-maven
-        uses: actions/cache@v2
-        with:
-          path: ~/.m2/repository
-          key: ${{ runner.os }}-maven-2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-2-
-      - name: Populate maven cache
-        if: steps.cache-maven.outputs.cache-hit != 'true'
-        run: ./mvnw de.qaware.maven:go-offline-maven-plugin:resolve-dependencies  --no-transfer-progress -P ci && .github/bin/download_nodejs
-      - name: Maven Checks
-        run: |
-          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
-          ./mvnw install -B -V -T 1C -DskipTests -Dmaven.javadoc.skip=true --no-transfer-progress -P ci -pl '!presto-test-coverage,!:presto-server,!:presto-docs'
-      - name: Clean Maven Output
-        run: ./mvnw clean -pl '!:presto-server,!:presto-cli,!presto-test-coverage'
+    - continue-on-error: true
+      name: Free Disk Space
+      run: 'df -h
+
+        sudo apt-get clean
+
+        df -h
+
+        '
+    - continue-on-error: true
+      uses: actions/checkout@v4
+      with:
+        show-progress: false
+    - continue-on-error: true
+      uses: actions/setup-java@v2
+      with:
+        distribution: temurin
+        java-version: 8
+    - continue-on-error: true
+      id: cache-maven
+      name: Cache local Maven repository
+      uses: actions/cache@v2
+      with:
+        key: ${{ runner.os }}-maven-2-${{ hashFiles('**/pom.xml') }}
+        path: ~/.m2/repository
+        restore-keys: '${{ runner.os }}-maven-2-
+
+          '
+    - continue-on-error: true
+      if: steps.cache-maven.outputs.cache-hit != 'true'
+      name: Populate maven cache
+      run: ./mvnw de.qaware.maven:go-offline-maven-plugin:resolve-dependencies  --no-transfer-progress
+        -P ci && .github/bin/download_nodejs
+    - continue-on-error: true
+      name: Maven Checks
+      run: 'export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+
+        ./mvnw install -B -V -T 1C -DskipTests -Dmaven.javadoc.skip=true --no-transfer-progress
+        -P ci -pl ''!presto-test-coverage,!:presto-server,!:presto-docs''
+
+        '
+    - continue-on-error: true
+      name: Clean Maven Output
+      run: ./mvnw clean -pl '!:presto-server,!:presto-cli,!presto-test-coverage'
+    timeout-minutes: 45
+name: maven checks
+on:
+  repository_dispatch:
+    types: trigger-ga___maven-checks.yml

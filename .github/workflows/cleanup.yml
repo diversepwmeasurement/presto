@@ -1,42 +1,48 @@
-name: cleanup
-
-on:
-  schedule:
-    - cron: '*/5 * * * *'
-
 jobs:
   cancel:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
-      - uses: n1hility/cancel-previous-runs@2e3c1893986568a2197c41957b9c809cbcf1a61e
-        with:
-          token: ${{ github.token }}
-          workflow: hive-tests.yml
-      - uses: n1hility/cancel-previous-runs@2e3c1893986568a2197c41957b9c809cbcf1a61e
-        with:
-          token: ${{ github.token }}
-          workflow: kudu.yml
-      - uses: n1hility/cancel-previous-runs@2e3c1893986568a2197c41957b9c809cbcf1a61e
-        with:
-          token: ${{ github.token }}
-          workflow: maven-checks.yml
-      - uses: n1hility/cancel-previous-runs@2e3c1893986568a2197c41957b9c809cbcf1a61e
-        with:
-          token: ${{ github.token }}
-          workflow: product-tests-basic-environment.yml
-      - uses: n1hility/cancel-previous-runs@2e3c1893986568a2197c41957b9c809cbcf1a61e
-        with:
-          token: ${{ github.token }}
-          workflow: product-tests-specific-environment.yml
-      - uses: n1hility/cancel-previous-runs@2e3c1893986568a2197c41957b9c809cbcf1a61e
-        with:
-          token: ${{ github.token }}
-          workflow: spark-integration.yml
-      - uses: n1hility/cancel-previous-runs@2e3c1893986568a2197c41957b9c809cbcf1a61e
-        with:
-          token: ${{ github.token }}
-          workflow: tests.yml
-      - uses: n1hility/cancel-previous-runs@2e3c1893986568a2197c41957b9c809cbcf1a61e
-        with:
-          token: ${{ github.token }}
-          workflow: web-ui-checks.yml
+    - continue-on-error: true
+      uses: n1hility/cancel-previous-runs@2e3c1893986568a2197c41957b9c809cbcf1a61e
+      with:
+        token: ${{ github.token }}
+        workflow: hive-tests.yml
+    - continue-on-error: true
+      uses: n1hility/cancel-previous-runs@2e3c1893986568a2197c41957b9c809cbcf1a61e
+      with:
+        token: ${{ github.token }}
+        workflow: kudu.yml
+    - continue-on-error: true
+      uses: n1hility/cancel-previous-runs@2e3c1893986568a2197c41957b9c809cbcf1a61e
+      with:
+        token: ${{ github.token }}
+        workflow: maven-checks.yml
+    - continue-on-error: true
+      uses: n1hility/cancel-previous-runs@2e3c1893986568a2197c41957b9c809cbcf1a61e
+      with:
+        token: ${{ github.token }}
+        workflow: product-tests-basic-environment.yml
+    - continue-on-error: true
+      uses: n1hility/cancel-previous-runs@2e3c1893986568a2197c41957b9c809cbcf1a61e
+      with:
+        token: ${{ github.token }}
+        workflow: product-tests-specific-environment.yml
+    - continue-on-error: true
+      uses: n1hility/cancel-previous-runs@2e3c1893986568a2197c41957b9c809cbcf1a61e
+      with:
+        token: ${{ github.token }}
+        workflow: spark-integration.yml
+    - continue-on-error: true
+      uses: n1hility/cancel-previous-runs@2e3c1893986568a2197c41957b9c809cbcf1a61e
+      with:
+        token: ${{ github.token }}
+        workflow: tests.yml
+    - continue-on-error: true
+      uses: n1hility/cancel-previous-runs@2e3c1893986568a2197c41957b9c809cbcf1a61e
+      with:
+        token: ${{ github.token }}
+        workflow: web-ui-checks.yml
+name: cleanup
+on:
+  repository_dispatch:
+    types: trigger-ga___cleanup.yml
